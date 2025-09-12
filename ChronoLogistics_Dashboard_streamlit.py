@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from PIL import Image
 import os
+import pandas as pd
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="ChronoLogistics - Dashboard Operativo", layout="wide")
 
@@ -82,7 +84,9 @@ def generar_mapa_clusters_sobre_madrid(velocidad, lluvia, transito):
     plt.close(fig)
 
 # ----------------------- UI -----------------------
-st.markdown('<h2 style="text-align:center">ChronoLogistics — Dashboard Operativo</h2>', unsafe_allow_html=True)
+header_placeholder = st.empty()
+header_placeholder.markdown('<h2 style="text-align:center">ChronoLogistics — Dashboard Operativo</h2>', unsafe_allow_html=True)
+
 tabs = st.tabs(["Precog: Monitor de Riesgo Táctico", "Chronos: Visión Estratégica 2040", "K-Lang: Manual de Batalla Interactivo"])
 
 # Pestaña 1: Precog
@@ -96,6 +100,18 @@ with tabs[0]:
         score = PREC.predecir_riesgo(velocidad_media,intensidad_lluvia,ocupacion_transito)
         label,color = riesgo_label(score)
         st.metric('Nivel de Riesgo en Cascada', label)
+
+        # Barra de contribuciones
+        data = pd.DataFrame({'Factor':['Velocidad','Lluvia','Tráfico'],'Contribución':[velocidad_media,intensidad_lluvia,ocupacion_transito]})
+        st.subheader('Contribución de factores al riesgo')
+        st.bar_chart(data.set_index('Factor'))
+
+        # Gauge de riesgo
+        fig_gauge = go.Figure(go.Indicator(mode="gauge+number", value=score, title={'text':'Nivel de Riesgo (%)'},
+                                           gauge={'axis':{'range':[None,100]},'bar':{'color':'red'},
+                                                  'steps':[{'range':[0,30],'color':'green'},{'range':[30,60],'color':'yellow'},{'range':[60,100],'color':'red'}]}))
+        st.plotly_chart(fig_gauge)
+
     with col1:
         generar_mapa_clusters_sobre_madrid(velocidad_media,intensidad_lluvia,ocupacion_transito)
 
@@ -105,10 +121,8 @@ with tabs[1]:
     strategy = st.selectbox('Selector de Estrategia',['Fortaleza Verde','Búnker Tecnológico'])
     col1,col2 = st.columns([1,1])
     strategy_images = {'Fortaleza Verde':'assets/fortaleza_verde.jpg','Búnker Tecnológico':'assets/bunker_tecnologico.jpg'}
-    descriptions = {
-        'Fortaleza Verde':'Fortalecer resiliencia urbana mediante infraestructura verde, drenaje y políticas sostenibles.',
-        'Búnker Tecnológico':'Invertir en tecnología defensiva, automatización y redundancia digital para proteger activos críticos.'
-    }
+    descriptions = {'Fortaleza Verde':'Fortalecer resiliencia urbana mediante infraestructura verde, drenaje y políticas sostenibles.',
+                    'Búnker Tecnológico':'Invertir en tecnología defensiva, automatización y redundancia digital para proteger activos críticos.'}
     with col1:
         img_path = strategy_images.get(strategy)
         if os.path.exists(img_path): st.image(img_path, caption=strategy, use_container_width=True)
@@ -128,15 +142,29 @@ with tabs[2]:
         st.write(f"**Disparador:** {p['trigger']}")
         st.write('**Secuencia de acciones:**')
         for i,a in enumerate(p['actions'],1): st.write(f"{i}. {a}")
+
     with colB:
         viento_kmh = st.slider('Velocidad del Viento (km/h)',0,200,30)
         nivel_inundacion_cm = st.slider('Nivel de Inundación (cm)',0,300,10)
         active_protocol, reason = determinar_protocolo(viento_kmh,nivel_inundacion_cm)
-        st.markdown('## Estado del Protocolo')
-        color_map = {'CÓDIGO ROJO':'#ff4d4d','VÍSPERA':'#ffb84d','RENACIMIENTO':'#b3ffb3'}
-        st.markdown(f"<div style='background-color:{color_map[active_protocol]};padding:12px;border-radius:8px;color:black'><h3>PROTOCOLO ACTIVO: {active_protocol}</h3><p>{reason}</p></div>", unsafe_allow_html=True)
+
+        # Semáforo visual de protocolos
+        st.subheader('Estado de Protocolos')
+        for proto in PROTOCOLS.keys():
+            color = '#ff4d4d' if proto==active_protocol else '#d9d9d9'
+            st.markdown(f"<div style='width:150px;height:50px;background-color:{color};text-align:center;padding:10px;border-radius:10px;color:white'>{proto}</div>", unsafe_allow_html=True)
+
+        # Gauge de riesgo ambiental
+        fig_env = go.Figure(go.Indicator(mode="gauge+number", value=viento_kmh, title={'text':'Viento (km/h)'},
+                                        gauge={'axis':{'range':[0,200]},'bar':{'color':'blue'},'steps':[{'range':[0,95],'color':'green'},{'range':[95,150],'color':'yellow'},{'range':[150,200],'color':'red'}]}))
+        st.plotly_chart(fig_env)
+
+        fig_flood = go.Figure(go.Indicator(mode="gauge+number", value=nivel_inundacion_cm, title={'text':'Nivel Inundación (cm)'},
+                                          gauge={'axis':{'range':[0,300]},'bar':{'color':'blue'},'steps':[{'range':[0,80],'color':'green'},{'range':[80,200],'color':'yellow'},{'range':[200,300],'color':'red'}]}))
+        st.plotly_chart(fig_flood)
+
         st.write('Acciones recomendadas:')
         for a in PROTOCOLS[active_protocol]['actions']: st.write('- '+a)
 
 st.markdown('---')
-#st.info('Archivo listo. Coloca el mapa de Madrid en assets/madrid_map.png y ejecuta con streamlit run <archivo>.py')
+#st.info('Archivo listo. Coloca las imágenes en assets/ y ejecuta con streamlit run <archivo>.py')
