@@ -5,7 +5,7 @@ import matplotlib.colors as mcolors
 from PIL import Image
 import os
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.graph_objects as go # type: ignore
 
 st.set_page_config(page_title="ChronoLogistics - Dashboard Operativo", layout="wide")
 
