@@ -61,38 +61,44 @@ def riesgo_label(score):
 PREC = Precog()
 
 # ----------------------- Mapa dinámico -----------------------
-import matplotlib.colors as mcolors
 
 def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     np.random.seed(42)
-    # Generar clústeres sintéticos
-    x = np.concatenate([
-        np.random.normal(loc=[30, 30], scale=6, size=(400, 2)),
-        np.random.normal(loc=[70, 40], scale=8, size=(300, 2)),
-        np.random.normal(loc=[50, 70], scale=10, size=(200, 2)),
-        np.random.normal(loc=[80, 80], scale=5, size=(150, 2)),
-    ])
+
+    # Ajustamos parámetros de los clústeres según sliders
+    num_puntos = int(400 + velocidad*2 + lluvia*1.5 + transito*2)  # más puntos = más intenso
+    spread = max(2, 15 - velocidad/20)  # clúster más compacto con velocidad alta
+    center_shift = velocidad/10  # desplaza ligeramente los clústeres según velocidad
+
+    # Generar clústeres dinámicos
+    clusters = [
+        [30+center_shift, 30+center_shift],
+        [70-center_shift, 40+center_shift],
+        [50+center_shift, 70-center_shift],
+        [80-center_shift, 80+center_shift]
+    ]
+    
+    x_list = []
+    for cx, cy in clusters:
+        pts = np.random.normal(loc=[cx, cy], scale=spread, size=(int(num_puntos/len(clusters)), 2))
+        x_list.append(pts)
+    x = np.concatenate(x_list)
+
+    # Histograma 2D
     heat, _, _ = np.histogram2d(x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]])
     heat = np.rot90(heat)
     heat = np.flipud(heat)
 
-    # Factor de riesgo combinado, exagerado para la demo
-    riesgo_factor = (velocidad/150) + (lluvia/200) + (transito/100)
-    heat = heat * (1 + riesgo_factor * 10)  # Multiplicador mucho más fuerte
-
-    # Colormap: negro → verde → amarillo → rojo oscuro
+    # Colormap negro → verde → amarillo → rojo oscuro
     cmap = mcolors.LinearSegmentedColormap.from_list(
         "riesgo",
         ["black", "green", "yellow", "red", "darkred"]
     )
 
-    # vmax dinámico para que los cambios de color sean muy visibles
-    vmax = np.max(heat) * 1.2
-
     fig, ax = plt.subplots(figsize=(6,6))
     im = ax.imshow(
         heat, extent=[0,100,0,100], origin='lower',
-        cmap=cmap, vmin=0, vmax=vmax
+        cmap=cmap, vmin=0, vmax=np.max(heat)
     )
     ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
