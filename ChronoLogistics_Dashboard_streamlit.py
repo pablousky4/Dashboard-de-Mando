@@ -82,7 +82,7 @@ def generar_mapa_clusters_sobre_madrid(velocidad, lluvia, transito):
     plt.close(fig)
 
 # ----------------------- UI -----------------------
-st.markdown('<h1 style="text-align:center">ChronoLogistics — Dashboard Operativo</h1>', unsafe_allow_html=True)
+st.markdown('<h2 style="text-align:center">ChronoLogistics — Dashboard Operativo</h2>', unsafe_allow_html=True)
 tabs = st.tabs(["Precog: Monitor de Riesgo Táctico", "Chronos: Visión Estratégica 2040", "K-Lang: Manual de Batalla Interactivo"])
 
 # Pestaña 1: Precog
