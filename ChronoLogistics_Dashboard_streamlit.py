@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 from io import BytesIO
+import matplotlib.colors as mcolors
 
 st.set_page_config(page_title="ChronoLogistics - Dashboard Operativo", layout="wide")
 
@@ -74,15 +75,22 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     heat = np.rot90(heat)
     heat = np.flipud(heat)
 
-    # Cambiar la escala de color dinámicamente
-    # Cuanto más alto sea el riesgo → más rango de color
-    riesgo_factor = 1 + (velocidad/150) + (lluvia/200) + (transito/100)
-    vmax = np.max(heat) * riesgo_factor
+    # Factor de riesgo (0 a ~3)
+    riesgo_factor = (velocidad/150) + (lluvia/200) + (transito/100)
+
+    # Escalar colores exageradamente
+    vmax = np.max(heat) * (1 + riesgo_factor * 4)  # más multiplicador = más contraste
+
+    # Colormap verde → amarillo → rojo oscuro
+    cmap = mcolors.LinearSegmentedColormap.from_list(
+        "riesgo",
+        ["green", "yellow", "orange", "red", "darkred"]
+    )
 
     fig, ax = plt.subplots(figsize=(6,6))
     im = ax.imshow(
         heat, extent=[0,100,0,100], origin='lower',
-        cmap='hot', vmin=0, vmax=vmax
+        cmap=cmap, vmin=0, vmax=vmax
     )
     ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
