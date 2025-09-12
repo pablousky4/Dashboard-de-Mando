@@ -61,25 +61,24 @@ def riesgo_label(score):
 PREC = Precog()
 
 # ----------------------- Mapa dinámico -----------------------
+import matplotlib.colors as mcolors
+
 def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     np.random.seed(42)
+    # Generar clústeres sintéticos
     x = np.concatenate([
         np.random.normal(loc=[30, 30], scale=6, size=(400, 2)),
         np.random.normal(loc=[70, 40], scale=8, size=(300, 2)),
         np.random.normal(loc=[50, 70], scale=10, size=(200, 2)),
         np.random.normal(loc=[80, 80], scale=5, size=(150, 2)),
     ])
-    heat, xedges, yedges = np.histogram2d(
-        x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]]
-    )
+    heat, _, _ = np.histogram2d(x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]])
     heat = np.rot90(heat)
     heat = np.flipud(heat)
 
-    # Factor de riesgo (0 a ~3)
+    # Factor de riesgo combinado, exagerado para la demo
     riesgo_factor = (velocidad/150) + (lluvia/200) + (transito/100)
-
-    # Escalar para forzar que a más riesgo → más valores altos → más rojo
-    heat = heat * (1 + riesgo_factor * 5)
+    heat = heat * (1 + riesgo_factor * 10)  # Multiplicador mucho más fuerte
 
     # Colormap: negro → verde → amarillo → rojo oscuro
     cmap = mcolors.LinearSegmentedColormap.from_list(
@@ -87,10 +86,13 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
         ["black", "green", "yellow", "red", "darkred"]
     )
 
+    # vmax dinámico para que los cambios de color sean muy visibles
+    vmax = np.max(heat) * 1.2
+
     fig, ax = plt.subplots(figsize=(6,6))
     im = ax.imshow(
         heat, extent=[0,100,0,100], origin='lower',
-        cmap=cmap, vmin=0, vmax=np.max(heat)  # ajustado al valor actual
+        cmap=cmap, vmin=0, vmax=vmax
     )
     ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
@@ -98,6 +100,7 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     st.pyplot(fig)
     plt.close(fig)
+
 
 
 # ----------------------- Protocolos K-Lang -----------------------
