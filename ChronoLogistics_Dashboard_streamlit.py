@@ -4,25 +4,16 @@ Archivo único: ChronoLogistics_Dashboard_streamlit.py
 
 Instrucciones rápidas:
 1) Crear un entorno virtual (recomendado) y pip install -r requirements.txt
-   Requisitos: streamlit, numpy, matplotlib, pillow
-   Ejemplo: pip install streamlit numpy matplotlib pillow
+   Requisitos: streamlit, numpy, matplotlib, pillow, scipy
+   Ejemplo: pip install streamlit numpy matplotlib pillow scipy
 2) Colocar las imágenes pre-generadas en ./assets/
-   - assets/map_clusters.png      (opcional; el script genera uno de ejemplo si no existe)
+   - assets/map_clusters.png      (opcional; ahora el script puede generar uno dinámico)
    - assets/fortaleza_verde.jpg
    - assets/bunker_tecnologico.jpg
 3) Ejecutar: streamlit run ChronoLogistics_Dashboard_streamlit.py
 
 Nota: Este archivo está diseñado para ser autocontenido y ejecutable en local.
 Reemplace las imágenes de ejemplo por las GANs y mapas oficiales antes de la demo.
-
-Descripción funcional (resumen):
-- Pestaña "Precog" genera (o carga) un mapa de calor con 4 clusters y marca los 3 más críticos.
-  Ofrece sliders para variables tácticas y llama a precog.predecir_riesgo() para mostrar un
-  "Nivel de Riesgo en Cascada" en tiempo real.
-- Pestaña "Chronos" permite seleccionar estrategia a 2040 y muestra imagen + defensa.
-- Pestaña "K-Lang" contiene selector de protocolos (VÍSPERA, CÓDIGO ROJO, RENACIMIENTO)
-  y un simulador de sensores (viento, inundación) que determina automáticamente el
-  protocolo activo y muestra la ficha técnica.
 
 Autor: Equipo de Estrategia y Respuesta a Crisis de IA (plantilla entregable)
 """
@@ -43,17 +34,11 @@ class Precog:
         pass
 
     def predecir_riesgo(self, velocidad_media, intensidad_lluvia, ocupacion_transito):
-        """Modelo simple: combinación lineal + no-lineal para producir un score 0-100.
-        Esta función es un placeholder: sustituidla por vuestro modelo real.
-        """
-        # normalizar entradas
         v = np.clip(velocidad_media / 150.0, 0, 1)
         r = np.clip(intensidad_lluvia / 200.0, 0, 1)
         t = np.clip(ocupacion_transito / 100.0, 0, 1)
 
-        # score base
         score = 0.5 * v + 0.35 * r + 0.15 * t
-        # término no-lineal para eventos extremos
         extreme = 0
         if velocidad_media > 100:
             extreme += 0.12 * ((velocidad_media - 100) / 50)
@@ -72,61 +57,37 @@ def riesgo_label(score):
     else:
         return f"{score:.0f}% - ALTO", "red"
 
-
 PREC = Precog()
 
-# ----------------------- Map Generator (Ejemplo) -----------------------
-def generar_mapa_clusters(save_path=None, seed=42):
-    """Genera una imagen de mapa de calor con 4 clusters de ejemplo y devuelve la imagen PIL.
-    Marca además los 3 clusters más críticos (los de mayor intensidad) con triángulos.
-    """
-    np.random.seed(seed)
+# ----------------------- Mapa dinámico -----------------------
+def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
+    np.random.seed(42)
     x = np.concatenate([
         np.random.normal(loc=[30, 30], scale=6, size=(400, 2)),
         np.random.normal(loc=[70, 40], scale=8, size=(300, 2)),
         np.random.normal(loc=[50, 70], scale=10, size=(200, 2)),
         np.random.normal(loc=[80, 80], scale=5, size=(150, 2)),
     ])
-    heat, xedges, yedges = np.histogram2d(x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]])
+    heat, xedges, yedges = np.histogram2d(
+        x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]]
+    )
     heat = np.rot90(heat)
     heat = np.flipud(heat)
 
+    # Escalar la intensidad según sliders
+    factor = 1 + (velocidad/150) + (lluvia/200) + (transito/100)
+    heat = heat * factor
+
     fig, ax = plt.subplots(figsize=(6,6))
-    im = ax.imshow(heat, extent=[0,100,0,100], origin='lower', cmap='hot')
-    ax.set_title('Mapa de Calor - Clústeres de Riesgo (Ejemplo)')
+    im = ax.imshow(
+        heat, extent=[0,100,0,100], origin='lower', cmap='hot'
+    )
+    ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
     ax.set_ylabel('Latitud (simulada)')
-
-    # detectar 4 máximos simples para simular centros de clusters
-    from scipy.ndimage import maximum_filter, gaussian_filter
-    blurred = gaussian_filter(heat, sigma=2)
-    flat = blurred.flatten()
-    idxs = np.argsort(flat)[-4:]
-    ys, xs = np.unravel_index(idxs, blurred.shape)
-    # convertir a coordenadas 0-100
-    xs_coord = xedges[xs]
-    ys_coord = yedges[ys]
-
-    # calcular intensidades para marcar los 3 más críticos
-    intensities = [blurred[y,x] for y,x in zip(ys,xs)]
-    order = np.argsort(intensities)[::-1]
-    top3 = [ (xs_coord[i], ys_coord[i]) for i in order[:3] ]
-
-    # marcar triángulos
-    for (xc,yc) in top3:
-        ax.scatter(xc, yc, marker='^', s=200, facecolors='none', edgecolors='cyan', linewidths=2)
-
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    buf = BytesIO()
-    plt.tight_layout()
-    fig.savefig(buf, format='png')
+    st.pyplot(fig)
     plt.close(fig)
-    buf.seek(0)
-    img = Image.open(buf)
-
-    if save_path:
-        img.save(save_path)
-    return img, top3
 
 # ----------------------- Protocolos K-Lang -----------------------
 PROTOCOLS = {
@@ -156,9 +117,6 @@ PROTOCOLS = {
 
 
 def determinar_protocolo(viento_kmh, nivel_inundacion_cm):
-    """Reglas heurísticas para decidir qué protocolo estaría activo.
-    Devuelve (protocolo, razon)
-    """
     if viento_kmh >= 95 or nivel_inundacion_cm >= 80:
         return 'CÓDIGO ROJO', 'Viento >= 95 km/h o Inundación >= 80 cm'
     if viento_kmh >= 40 or nivel_inundacion_cm >= 30:
@@ -176,21 +134,6 @@ with tabs[0]:
     st.header('Precog: Monitor de Riesgo Táctico')
     col1, col2 = st.columns([2,1])
 
-    # izquierda: mapa + top3
-    with col1:
-        st.subheader('Mapa de Calor de Riesgo')
-        asset_map = 'assets/map_clusters.png'
-        if os.path.exists(asset_map):
-            img = Image.open(asset_map)
-            # Asumimos que la imagen ya tiene marcadores si fue exportada desde análisis
-            st.image(img, use_container_width=True)
-            # nota: si queréis resaltar triángulos dinámicamente, calculad top3 y replotear
-        else:
-            img_gen, top3 = generar_mapa_clusters(save_path=None)
-            st.image(img_gen, use_container_width=True)
-            st.markdown('**Triángulo del Peligro**: los 3 triángulos cyan marcan los clústeres más críticos (generado).')
-
-    # derecha: simulador
     with col2:
         st.subheader('Simulador de Riesgo Interactivo')
         velocidad_media = st.slider('Velocidad media (km/h)', min_value=0, max_value=160, value=60)
@@ -205,6 +148,10 @@ with tabs[0]:
         st.write(f'- Velocidad media: {velocidad_media} km/h')
         st.write(f'- Intensidad lluvia: {intensidad_lluvia} mm/h')
         st.write(f'- Ocupación tráfico: {ocupacion_transito} %')
+
+    with col1:
+        st.subheader("Mapa de Calor Dinámico")
+        generar_mapa_clusters_dinamico(velocidad_media, intensidad_lluvia, ocupacion_transito)
 
 # ----------------------- Pestaña 2: Chronos -----------------------
 with tabs[1]:
