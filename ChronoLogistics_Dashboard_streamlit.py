@@ -183,11 +183,11 @@ with tabs[0]:
         if os.path.exists(asset_map):
             img = Image.open(asset_map)
             # Asumimos que la imagen ya tiene marcadores si fue exportada desde análisis
-            st.image(img, use_column_width=True)
+            st.image(img, use_container_width=True)
             # nota: si queréis resaltar triángulos dinámicamente, calculad top3 y replotear
         else:
             img_gen, top3 = generar_mapa_clusters(save_path=None)
-            st.image(img_gen, use_column_width=True)
+            st.image(img_gen, use_container_width=True)
             st.markdown('**Triángulo del Peligro**: los 3 triángulos cyan marcan los clústeres más críticos (generado).')
 
     # derecha: simulador
@@ -234,7 +234,7 @@ with tabs[1]:
     with col1:
         img_path = strategy_images.get(strategy)
         if os.path.exists(img_path):
-            st.image(img_path, caption=strategy, use_column_width=True)
+            st.image(img_path, caption=strategy, use_container_width=True)
         else:
             st.warning('Imagen no encontrada en assets/. Usa una imagen pre-generada para la demo.')
             st.info('Nombre esperado: ' + img_path)
