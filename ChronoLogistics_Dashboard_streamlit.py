@@ -139,4 +139,4 @@ with tabs[2]:
         for a in PROTOCOLS[active_protocol]['actions']: st.write('- '+a)
 
 st.markdown('---')
-st.info('Archivo listo. Coloca el mapa de Madrid en assets/madrid_map.png y ejecuta con streamlit run <archivo>.py')
+#st.info('Archivo listo. Coloca el mapa de Madrid en assets/madrid_map.png y ejecuta con streamlit run <archivo>.py')
