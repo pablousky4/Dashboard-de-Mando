@@ -1,54 +1,28 @@
-"""
-ChronoLogistics - Dashboard Operativo (Streamlit)
-Archivo único: ChronoLogistics_Dashboard_streamlit.py
-
-Instrucciones rápidas:
-1) Crear un entorno virtual (recomendado) y pip install -r requirements.txt
-   Requisitos: streamlit, numpy, matplotlib, pillow, scipy
-   Ejemplo: pip install streamlit numpy matplotlib pillow scipy
-2) Colocar las imágenes pre-generadas en ./assets/
-   - assets/map_clusters.png      (opcional; ahora el script puede generar uno dinámico)
-   - assets/fortaleza_verde.jpg
-   - assets/bunker_tecnologico.jpg
-3) Ejecutar: streamlit run ChronoLogistics_Dashboard_streamlit.py
-
-Nota: Este archivo está diseñado para ser autocontenido y ejecutable en local.
-Reemplace las imágenes de ejemplo por las GANs y mapas oficiales antes de la demo.
-
-Autor: Equipo de Estrategia y Respuesta a Crisis de IA (plantilla entregable)
-"""
-
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from PIL import Image
 import os
-from io import BytesIO
-import matplotlib.colors as mcolors
 
 st.set_page_config(page_title="ChronoLogistics - Dashboard Operativo", layout="wide")
 
-# ----------------------- Utilidades y Lógica -----------------------
+# ----------------------- Precog: Lógica y Funciones -----------------------
 class Precog:
-    """Lógica interna para predecir riesgo."""
-    def __init__(self):
-        pass
-
     def predecir_riesgo(self, velocidad_media, intensidad_lluvia, ocupacion_transito):
         v = np.clip(velocidad_media / 150.0, 0, 1)
         r = np.clip(intensidad_lluvia / 200.0, 0, 1)
         t = np.clip(ocupacion_transito / 100.0, 0, 1)
-
         score = 0.5 * v + 0.35 * r + 0.15 * t
         extreme = 0
         if velocidad_media > 100:
             extreme += 0.12 * ((velocidad_media - 100) / 50)
         if intensidad_lluvia > 120:
             extreme += 0.12 * ((intensidad_lluvia - 120) / 80)
-
         final = np.clip((score + extreme) * 100, 0, 100)
         return float(final)
 
+PREC = Precog()
 
 def riesgo_label(score):
     if score < 30:
@@ -58,218 +32,111 @@ def riesgo_label(score):
     else:
         return f"{score:.0f}% - ALTO", "red"
 
-PREC = Precog()
-
-# ----------------------- Mapa dinámico -----------------------
-
-def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
-    np.random.seed(42)
-
-    # Ajustamos parámetros de los clústeres según sliders
-    num_puntos = int(400 + velocidad*2 + lluvia*1.5 + transito*2)  # más puntos = más intenso
-    spread = max(2, 15 - velocidad/20)  # clúster más compacto con velocidad alta
-    center_shift = velocidad/10  # desplaza ligeramente los clústeres según velocidad
-
-    # Generar clústeres dinámicos
-    clusters = [
-        [30+center_shift, 30+center_shift],
-        [70-center_shift, 40+center_shift],
-        [50+center_shift, 70-center_shift],
-        [80-center_shift, 80+center_shift]
-    ]
-    
-    x_list = []
-    for cx, cy in clusters:
-        pts = np.random.normal(loc=[cx, cy], scale=spread, size=(int(num_puntos/len(clusters)), 2))
-        x_list.append(pts)
-    x = np.concatenate(x_list)
-
-    # Histograma 2D
-    heat, _, _ = np.histogram2d(x[:, 0], x[:, 1], bins=80, range=[[0,100],[0,100]])
-    heat = np.rot90(heat)
-    heat = np.flipud(heat)
-
-    # Colormap negro → verde → amarillo → rojo oscuro
-    cmap = mcolors.LinearSegmentedColormap.from_list(
-        "riesgo",
-        ["black", "green", "yellow", "red", "darkred"]
-    )
-
-    fig, ax = plt.subplots(figsize=(6,6))
-    im = ax.imshow(
-        heat, extent=[0,100,0,100], origin='lower',
-        cmap=cmap, vmin=0, vmax=np.max(heat)
-    )
-    ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
-    ax.set_xlabel('Longitud (simulada)')
-    ax.set_ylabel('Latitud (simulada)')
-    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    st.pyplot(fig)
-    plt.close(fig)
-
-
-
-# ----------------------- Protocolos K-Lang -----------------------
+# ----------------------- K-Lang Protocolos -----------------------
 PROTOCOLS = {
-    'VÍSPERA': {
-        'trigger': 'Condiciones pre-alerta: viento moderado o lluvias localizadas',
-        'actions': [
-            'Activar patrullas de inspección',
-            'Preparar centros de refugio',
-            'Notificar a stakeholders clave'
-        ]
-    },
-    'CÓDIGO ROJO': {
-        'trigger': 'Evento extremo: vientos > 90 km/h o inundación > 80 cm',
-        'actions': [
-            'Evacuación inmediata de zonas de riesgo',
-            'Corte de suministro selectivo',
-            'Activación del equipo TITÁN y comunicación pública']
-    },
-    'RENACIMIENTO': {
-        'trigger': 'Post-evento: daños estabilizados, iniciar recuperación',
-        'actions': [
-            'Evaluación de daños',
-            'Planificación de reconstrucción prioritaria',
-            'Revisar y adaptar protocolos']
-        }
+    'VÍSPERA': {'trigger': 'Condiciones pre-alerta', 'actions': ['Activar patrullas', 'Preparar refugios', 'Notificar stakeholders']},
+    'CÓDIGO ROJO': {'trigger': 'Evento extremo', 'actions': ['Evacuación inmediata', 'Corte suministro', 'Activar TITÁN']},
+    'RENACIMIENTO': {'trigger': 'Post-evento', 'actions': ['Evaluación daños', 'Plan reconstrucción', 'Revisar protocolos']}
 }
-
 
 def determinar_protocolo(viento_kmh, nivel_inundacion_cm):
     if viento_kmh >= 95 or nivel_inundacion_cm >= 80:
         return 'CÓDIGO ROJO', 'Viento >= 95 km/h o Inundación >= 80 cm'
     if viento_kmh >= 40 or nivel_inundacion_cm >= 30:
-        return 'VÍSPERA', 'Condiciones de pre-alerta: viento >=40 km/h o inundación >=30 cm'
+        return 'VÍSPERA', 'Condiciones de pre-alerta'
     return 'RENACIMIENTO', 'Condición normal / post-evento'
 
+# ----------------------- Mapa de calor sobre Madrid -----------------------
+def generar_mapa_clusters_sobre_madrid(velocidad, lluvia, transito):
+    np.random.seed(42)
+    num_puntos = int(400 + velocidad*2 + lluvia*1.5 + transito*2)
+    spread = max(2, 15 - velocidad/20)
+    center_shift = velocidad/10
+    clusters = [[30+center_shift,30+center_shift],[70-center_shift,40+center_shift],[50+center_shift,70-center_shift],[80-center_shift,80+center_shift]]
+    x_list = []
+    for cx, cy in clusters:
+        pts = np.random.normal(loc=[cx, cy], scale=spread, size=(int(num_puntos/len(clusters)), 2))
+        x_list.append(pts)
+    x = np.concatenate(x_list)
+    heat, _, _ = np.histogram2d(x[:,0], x[:,1], bins=80, range=[[0,100],[0,100]])
+    heat = np.rot90(heat)
+    heat = np.flipud(heat)
+
+    cmap = mcolors.LinearSegmentedColormap.from_list("riesgo", ["black","green","yellow","red","darkred"])
+
+    fondo_path = 'assets/madrid_map.png'
+    if os.path.exists(fondo_path):
+        fondo_img = np.array(Image.open(fondo_path))
+    else:
+        st.warning("No se encuentra el mapa de Madrid en assets/. Usando fondo blanco.")
+        fondo_img = np.ones((800,800,3))
+
+    fig, ax = plt.subplots(figsize=(6,6))
+    ax.imshow(fondo_img, extent=[0,100,0,100], origin='upper')
+    ax.imshow(heat, extent=[0,100,0,100], origin='lower', cmap=cmap, alpha=0.6, vmin=0, vmax=np.max(heat))
+    ax.set_title('Mapa de Calor Dinámico sobre Madrid')
+    ax.set_xlabel('Longitud (simulada)')
+    ax.set_ylabel('Latitud (simulada)')
+    plt.colorbar(ax.images[-1], ax=ax, fraction=0.046, pad=0.04)
+    st.pyplot(fig)
+    plt.close(fig)
+
 # ----------------------- UI -----------------------
-
 st.markdown('<h1 style="text-align:center">ChronoLogistics — Dashboard Operativo</h1>', unsafe_allow_html=True)
-
 tabs = st.tabs(["Precog: Monitor de Riesgo Táctico", "Chronos: Visión Estratégica 2040", "K-Lang: Manual de Batalla Interactivo"])
 
-# ----------------------- Pestaña 1: Precog -----------------------
+# Pestaña 1: Precog
 with tabs[0]:
     st.header('Precog: Monitor de Riesgo Táctico')
-    col1, col2 = st.columns([2,1])
-
+    col1,col2 = st.columns([2,1])
     with col2:
-        st.subheader('Simulador de Riesgo Interactivo')
-        velocidad_media = st.slider('Velocidad media (km/h)', min_value=0, max_value=160, value=60)
-        intensidad_lluvia = st.slider('Intensidad de lluvia (mm/h)', min_value=0, max_value=300, value=20)
-        ocupacion_transito = st.slider('Ocupación de tráfico (%)', min_value=0, max_value=100, value=45)
-
-        score = PREC.predecir_riesgo(velocidad_media, intensidad_lluvia, ocupacion_transito)
-        label, color = riesgo_label(score)
-
-        st.metric(label='Nivel de Riesgo en Cascada', value=label)
-        st.write('Detalles del cálculo:')
-        st.write(f'- Velocidad media: {velocidad_media} km/h')
-        st.write(f'- Intensidad lluvia: {intensidad_lluvia} mm/h')
-        st.write(f'- Ocupación tráfico: {ocupacion_transito} %')
-
+        velocidad_media = st.slider('Velocidad media (km/h)',0,160,60)
+        intensidad_lluvia = st.slider('Intensidad lluvia (mm/h)',0,300,20)
+        ocupacion_transito = st.slider('Ocupación tráfico (%)',0,100,45)
+        score = PREC.predecir_riesgo(velocidad_media,intensidad_lluvia,ocupacion_transito)
+        label,color = riesgo_label(score)
+        st.metric('Nivel de Riesgo en Cascada', label)
     with col1:
-        st.subheader("Mapa de Calor Dinámico")
-        generar_mapa_clusters_dinamico(velocidad_media, intensidad_lluvia, ocupacion_transito)
+        generar_mapa_clusters_sobre_madrid(velocidad_media,intensidad_lluvia,ocupacion_transito)
 
-# ----------------------- Pestaña 2: Chronos -----------------------
+# Pestaña 2: Chronos
 with tabs[1]:
     st.header('Chronos: Visión Estratégica 2040')
-    st.write('Selecciona la estrategia para visualizar el futuro deseado y su defensa estratégica.')
-
-    strategy = st.selectbox('Selector de Estrategia', ['Fortaleza Verde', 'Búnker Tecnológico'])
-    col1, col2 = st.columns([1,1])
-
-    strategy_images = {
-        'Fortaleza Verde': 'assets/fortaleza_verde.jpg',
-        'Búnker Tecnológico': 'assets/bunker_tecnologico.jpg'
-    }
-
+    strategy = st.selectbox('Selector de Estrategia',['Fortaleza Verde','Búnker Tecnológico'])
+    col1,col2 = st.columns([1,1])
+    strategy_images = {'Fortaleza Verde':'assets/fortaleza_verde.jpg','Búnker Tecnológico':'assets/bunker_tecnologico.jpg'}
     descriptions = {
-        'Fortaleza Verde': (
-            'Defensa de la estrategia: Fortalecer la resiliencia urbana mediante infraestructura verde, ' 
-            'sistemas de drenaje avanzados y políticas que reduzcan la huella de carbono. Esta visión protege ' 
-            'activos y mejora la calidad de vida en Madrid, reduciendo exposición a riesgos climáticos.'
-        ),
-        'Búnker Tecnológico': (
-            'Defensa de la estrategia: Inversión pesada en tecnología defensiva, automatización y redundancia ' 
-            'digital. Construir capacidades para operar en entornos adversos y proteger las cadenas logísticas críticas.'
-        )
+        'Fortaleza Verde':'Fortalecer resiliencia urbana mediante infraestructura verde, drenaje y políticas sostenibles.',
+        'Búnker Tecnológico':'Invertir en tecnología defensiva, automatización y redundancia digital para proteger activos críticos.'
     }
-
     with col1:
         img_path = strategy_images.get(strategy)
-        if os.path.exists(img_path):
-            st.image(img_path, caption=strategy, use_container_width=True)
-        else:
-            st.warning('Imagen no encontrada en assets/. Usa una imagen pre-generada para la demo.')
-            st.info('Nombre esperado: ' + img_path)
-
+        if os.path.exists(img_path): st.image(img_path, caption=strategy, use_container_width=True)
+        else: st.warning('Imagen no encontrada en assets/.')
     with col2:
         st.subheader('Argumento estratégico')
         st.write(descriptions[strategy])
-        st.markdown('**Puntos clave a presentar a la Junta (30-60s):**')
-        if strategy == 'Fortaleza Verde':
-            st.write('- Reducción de riesgo climático a largo plazo\n- Beneficio social y de reputación\n- Coste inicial moderado vs retorno social')
-        else:
-            st.write('- Máxima protección de activos críticos\n- Requiere alta inversión en tecnología\n- Ventaja competitiva en contextos extremos')
 
-# ----------------------- Pestaña 3: K-Lang -----------------------
+# Pestaña 3: K-Lang
 with tabs[2]:
     st.header('K-Lang: Manual de Batalla Interactivo')
-    st.write('Selector de Protocolos y Simulador en tiempo real')
-
-    colA, colB = st.columns([1,1])
+    colA,colB = st.columns([1,1])
     with colA:
-        st.subheader('Selector de Protocolos')
-        protocol_choice = st.selectbox('Elegir protocolo', list(PROTOCOLS.keys()))
+        protocol_choice = st.selectbox('Elegir protocolo',list(PROTOCOLS.keys()))
         p = PROTOCOLS[protocol_choice]
         st.markdown(f"**Ficha Técnica — {protocol_choice}**")
         st.write(f"**Disparador:** {p['trigger']}")
         st.write('**Secuencia de acciones:**')
-        for i, a in enumerate(p['actions'], start=1):
-            st.write(f"{i}. {a}")
-
+        for i,a in enumerate(p['actions'],1): st.write(f"{i}. {a}")
     with colB:
-        st.subheader('Simulador de Protocolos (sensores)')
-        viento_kmh = st.slider('Velocidad del Viento (km/h)', min_value=0, max_value=200, value=30)
-        nivel_inundacion_cm = st.slider('Nivel de Inundación (cm)', min_value=0, max_value=300, value=10)
-
-        active_protocol, reason = determinar_protocolo(viento_kmh, nivel_inundacion_cm)
-
+        viento_kmh = st.slider('Velocidad del Viento (km/h)',0,200,30)
+        nivel_inundacion_cm = st.slider('Nivel de Inundación (cm)',0,300,10)
+        active_protocol, reason = determinar_protocolo(viento_kmh,nivel_inundacion_cm)
         st.markdown('## Estado del Protocolo')
-        if active_protocol == 'CÓDIGO ROJO':
-            st.markdown(f"<div style='background-color:#ff4d4d;padding:15px;border-radius:8px;color:white'><h2>PROTOCOLO ACTIVO: {active_protocol} — TITÁN</h2><p>{reason}</p></div>", unsafe_allow_html=True)
-        elif active_protocol == 'VÍSPERA':
-            st.markdown(f"<div style='background-color:#ffb84d;padding:12px;border-radius:8px;color:black'><h3>PROTOCOLO ACTIVO: {active_protocol}</h3><p>{reason}</p></div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='background-color:#b3ffb3;padding:12px;border-radius:8px;color:black'><h3>PROTOCOLO ACTIVO: {active_protocol}</h3><p>{reason}</p></div>", unsafe_allow_html=True)
-
-        st.write('Acciones recomendadas (automáticas):')
-        prot = PROTOCOLS[active_protocol]
-        for a in prot['actions']:
-            st.write('- ' + a)
-
-# ----------------------- Pie / Detalles Técnicos -----------------------
-st.markdown('---')
-with st.expander('Arquitectura técnica (breve):'):
-    st.write('- Frontend: Streamlit (una sola app Python para rapidez en War Room)')
-    st.write('- Lógica/Modelo: funciones Python (Precog y heurísticas). Reemplazables por servicios ML/NoSQL.')
-    st.write('- Datos: fuentes en tiempo real -> conectar APIs/sockets/streams para sensores; actualmente simulados con sliders.')
-    st.write('- Despliegue sugerido: Streamlit Community Cloud o HuggingFace Spaces (Subir repo con requirements.txt y assets/).')
-
-with st.expander('Checklist antes de la demo (rápida):'):
-    st.write('- Reemplazar imágenes en assets/ por las versiones finales generadas por la GAN y el sistema de clustering.')
-    st.write('- Probar la app localmente: streamlit run ChronoLogistics_Dashboard_streamlit.py')
-    st.write('- Ensayar demo de 5 minutos: seguir el guion proporcionado abajo.')
+        color_map = {'CÓDIGO ROJO':'#ff4d4d','VÍSPERA':'#ffb84d','RENACIMIENTO':'#b3ffb3'}
+        st.markdown(f"<div style='background-color:{color_map[active_protocol]};padding:12px;border-radius:8px;color:black'><h3>PROTOCOLO ACTIVO: {active_protocol}</h3><p>{reason}</p></div>", unsafe_allow_html=True)
+        st.write('Acciones recomendadas:')
+        for a in PROTOCOLS[active_protocol]['actions']: st.write('- '+a)
 
 st.markdown('---')
-
-st.subheader('Guion de Demo — 5 minutos')
-st.write('1) (1 min) Precog: Mostrar mapa, cambiar sliders de velocidad/lluvia y mostrar cómo cambia el nivel de riesgo en cascada.')
-st.write('2) (1 min) Chronos: cambiar entre Fortalezca Verde / Búnker Tecnológico y presentar la defensa estratégica.')
-st.write('3) (2 min) K-Lang: seleccionar protocolos, usar el simulador de sensores para provocar CÓDIGO ROJO y explicar acciones.')
-st.write('4) (1 min) Explicar arquitectura y próximos pasos (conectar datos en tiempo real, pruebas de carga, roles en War Room).')
-
-st.info('Archivo listo: ChronoLogistics_Dashboard_streamlit.py. Coloca imágenes en ./assets/ y ejecuta.')
+st.info('Archivo listo. Coloca el mapa de Madrid en assets/madrid_map.png y ejecuta con streamlit run <archivo>.py')
