@@ -74,13 +74,15 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     heat = np.rot90(heat)
     heat = np.flipud(heat)
 
-    # Escalar la intensidad según sliders
-    factor = 1 + (velocidad/150) + (lluvia/200) + (transito/100)
-    heat = heat * factor
+    # Cambiar la escala de color dinámicamente
+    # Cuanto más alto sea el riesgo → más rango de color
+    riesgo_factor = 1 + (velocidad/150) + (lluvia/200) + (transito/100)
+    vmax = np.max(heat) * riesgo_factor
 
     fig, ax = plt.subplots(figsize=(6,6))
     im = ax.imshow(
-        heat, extent=[0,100,0,100], origin='lower', cmap='hot'
+        heat, extent=[0,100,0,100], origin='lower',
+        cmap='hot', vmin=0, vmax=vmax
     )
     ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
@@ -88,6 +90,7 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     st.pyplot(fig)
     plt.close(fig)
+
 
 # ----------------------- Protocolos K-Lang -----------------------
 PROTOCOLS = {
