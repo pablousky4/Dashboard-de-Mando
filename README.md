@@ -1,5 +1,5 @@
 # ChronoLogistics — Dashboard Operativo
-
+https://dashboard-de-mando-4te7ybp2cegnnrsidjboxf.streamlit.app/
 https://github.com/pablousky4/Dashboard-de-Mando
 
 ## 🚀 Ejecución local
