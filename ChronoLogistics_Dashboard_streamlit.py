@@ -78,8 +78,8 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     # Factor de riesgo (0 a ~3)
     riesgo_factor = (velocidad/150) + (lluvia/200) + (transito/100)
 
-    # Escalar colores con un rango amplio
-    vmax = np.max(heat) * (1 + riesgo_factor * 5)
+    # Escalar para forzar que a más riesgo → más valores altos → más rojo
+    heat = heat * (1 + riesgo_factor * 5)
 
     # Colormap: negro → verde → amarillo → rojo oscuro
     cmap = mcolors.LinearSegmentedColormap.from_list(
@@ -90,7 +90,7 @@ def generar_mapa_clusters_dinamico(velocidad, lluvia, transito):
     fig, ax = plt.subplots(figsize=(6,6))
     im = ax.imshow(
         heat, extent=[0,100,0,100], origin='lower',
-        cmap=cmap, vmin=0, vmax=vmax
+        cmap=cmap, vmin=0, vmax=np.max(heat)  # ajustado al valor actual
     )
     ax.set_title('Mapa de Calor Dinámico - Clústeres de Riesgo')
     ax.set_xlabel('Longitud (simulada)')
