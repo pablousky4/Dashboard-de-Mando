@@ -95,7 +95,12 @@ def generar_mapa_clusters_sobre_madrid(velocidad, lluvia, transito):
 header_placeholder = st.empty()
 header_placeholder.markdown('<h2 style="text-align:center">ChronoLogistics — Dashboard Operativo</h2>', unsafe_allow_html=True)
 
-tabs = st.tabs(["Precog: Monitor de Riesgo Táctico", "Chronos: Visión Estratégica 2040", "K-Lang: Manual de Batalla Interactivo"])
+tabs = st.tabs([
+    "Precog: Monitor de Riesgo Táctico",
+    "Chronos: Visión Estratégica 2040",
+    "K-Lang: Manual de Batalla Interactivo",
+    "Hydra: Registro de Alertas"
+])
 
 # Pestaña 1: Precog
 with tabs[0]:
@@ -119,6 +124,20 @@ with tabs[0]:
                                            gauge={'axis':{'range':[None,100]},'bar':{'color':'red'},
                                                   'steps':[{'range':[0,30],'color':'green'},{'range':[30,60],'color':'yellow'},{'range':[60,100],'color':'red'}]}))
         st.plotly_chart(fig_gauge)
+
+        # Historial y descarga de riesgo
+        if 'risk_history' not in st.session_state:
+            st.session_state['risk_history'] = []
+
+        if st.button('Guardar medición'):
+            st.session_state['risk_history'].append({'time': pd.Timestamp.now(), 'riesgo': score})
+
+        if st.session_state['risk_history']:
+            hist_df = pd.DataFrame(st.session_state['risk_history'])
+            hist_df['time'] = hist_df['time'].dt.strftime('%H:%M:%S')
+            st.subheader('Historial de riesgo')
+            st.line_chart(hist_df.set_index('time')['riesgo'])
+            st.download_button('Descargar historial CSV', hist_df.to_csv(index=False), file_name='historial_riesgo.csv')
 
     with col1:
         generar_mapa_clusters_sobre_madrid(velocidad_media,intensidad_lluvia,ocupacion_transito)
@@ -181,6 +200,24 @@ with tabs[2]:
 
         st.write('Acciones recomendadas:')
         for a in PROTOCOLS[active_protocol]['actions']: st.write('- '+a)
+
+# Pestaña 4: Hydra
+with tabs[3]:
+    st.header('Hydra: Registro de Alertas')
+    if 'alert_log' not in st.session_state:
+        st.session_state['alert_log'] = []
+
+    desc = st.text_input('Descripción del incidente')
+    severity = st.selectbox('Severidad', ['Baja', 'Media', 'Alta'])
+    if st.button('Añadir alerta') and desc:
+        st.session_state.alert_log.append({'time': pd.Timestamp.now(), 'descripcion': desc, 'severidad': severity})
+
+    if st.session_state.alert_log:
+        df_alert = pd.DataFrame(st.session_state.alert_log)
+        st.subheader('Historial de alertas')
+        st.dataframe(df_alert)
+        st.bar_chart(df_alert['severidad'].value_counts())
+        st.download_button('Descargar alertas CSV', df_alert.to_csv(index=False), file_name='alertas.csv')
 
 st.markdown('---')
 #st.info('Archivo listo. Coloca las imágenes en assets/ y ejecuta con streamlit run <archivo>.py')
