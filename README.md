@@ -13,3 +13,7 @@ https://github.com/pablousky4/Dashboard-de-Mando
    pip install -r requirements.txt
 3. Ejecutar la app:
 streamlit run ChronoLogistics_Dashboard_streamlit.py
+
+## ⭐ Funcionalidades extra
+- Historial de riesgo con descarga en CSV dentro de la pestaña **Precog**.
+- Nueva pestaña **Hydra** para registrar alertas manuales y exportarlas.
