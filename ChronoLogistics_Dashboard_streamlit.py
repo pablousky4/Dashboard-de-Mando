@@ -76,6 +76,14 @@ def generar_mapa_clusters_sobre_madrid(velocidad, lluvia, transito):
     fig, ax = plt.subplots(figsize=(6,6))
     ax.imshow(fondo_img, extent=[0,100,0,100], origin='upper')
     ax.imshow(heat, extent=[0,100,0,100], origin='lower', cmap=cmap, alpha=0.6, vmin=0, vmax=np.max(heat))
+
+    # Triángulo del Peligro: conectar los 3 clústeres más críticos
+    criticos = np.array(clusters[:3])
+    cx = np.append(criticos[:,0], criticos[0,0])
+    cy = np.append(criticos[:,1], criticos[0,1])
+    ax.plot(cx, cy, color='cyan', linewidth=2, linestyle='--')
+    ax.scatter(criticos[:,0], criticos[:,1], color='cyan', s=50)
+
     ax.set_title('Mapa de Calor Dinámico sobre Madrid')
     ax.set_xlabel('Longitud (simulada)')
     ax.set_ylabel('Latitud (simulada)')
@@ -147,6 +155,14 @@ with tabs[2]:
         viento_kmh = st.slider('Velocidad del Viento (km/h)',0,200,30)
         nivel_inundacion_cm = st.slider('Nivel de Inundación (cm)',0,300,10)
         active_protocol, reason = determinar_protocolo(viento_kmh,nivel_inundacion_cm)
+
+        # Indicador principal del protocolo activo
+        colores = {'CÓDIGO ROJO':'#ff4d4d','VÍSPERA':'#ffa500','RENACIMIENTO':'#4caf50'}
+        color_box = colores.get(active_protocol,'#d9d9d9')
+        st.markdown(
+            f"<div style='padding:15px;border-radius:10px;background-color:{color_box};text-align:center;color:white'>"
+            f"<h3>PROTOCOLO ACTIVO: {active_protocol}</h3><p>{reason}</p></div>",
+            unsafe_allow_html=True)
 
         # Semáforo visual de protocolos
         st.subheader('Estado de Protocolos')
