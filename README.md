@@ -1,5 +1,9 @@
 # ChronoLogistics — Dashboard Operativo
+
+# Link para Strealit
 https://dashboard-de-mando-4te7ybp2cegnnrsidjboxf.streamlit.app/
+
+# Link del repositorio
 https://github.com/pablousky4/Dashboard-de-Mando
 
 ## 🚀 Ejecución local
